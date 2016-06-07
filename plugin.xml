@@ -2,7 +2,7 @@
 
 <plugin xmlns="http://apache.org/cordova/ns/plugins/1.0"
 	xmlns:android="http://schemas.android.com/apk/res/android"
-           id="com.rjfun.cordova.plugin.paypalmpl"
+           id="com.covernal.cordova.plugin.MPL"
       version="1.0.0">
       
     <name>PayPalMPL</name>
@@ -10,8 +10,8 @@
 	<author>Liming Xie</author>
 	<license>MIT</license>
 	<keywords>paypal,payment,purchase,pay,buy</keywords>
-    <repo>https://github.com/floatinghotpot/cordova-plugin-paypalmpl.git</repo>
-    <issue>https://github.com/floatinghotpot/cordova-plugin-paypalmpl/issues</issue>
+    <repo>https://github.com/covernal/cordova-plugin-MPL.git</repo>
+    <issue>https://github.com/covernal/cordova-plugin-MPL/issues</issue>
 
 	<engines>
 	    <engine name="cordova" version=">=3.0" />
