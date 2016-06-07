@@ -40,7 +40,7 @@
      
      <!-- ios -->
      <platform name="ios">
-         <dependency id="com.paypal.mpl-ios" url="https://github.com/josemedaglia/com.paypal.mpl-ios"/>
+         <dependency id="com.paypal.mpl-ios" url="https://github.com/covernal/cordova-plugin-MPL-ios.git"/>
          <config-file target="config.xml" parent="/*">
              <feature name="PayPalMPL">
                  <param name="ios-package" value="CDVPayPalMPL" />
