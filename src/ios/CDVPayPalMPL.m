@@ -17,31 +17,31 @@
 
 @synthesize ppButton, ppPayment, pType, pStatus, payCallbackId;
 
-#define NO_APP_ID	@"dummy"
+#define NO_APP_ID   @"dummy"
 
 /* Get one from Paypal at developer.paypal.com */
-#define PAYPAL_APP_ID	@"APP-80W284485P519543T"
+#define PAYPAL_APP_ID   @"APP-80W284485P519543T"
 
 /* valid values are ENV_SANDBOX, ENV_NONE (offline) and ENV_LIVE */
-#define PAYPAL_APP_ENV	ENV_SANDBOX
+#define PAYPAL_APP_ENV  ENV_SANDBOX
 
 
--(CDVPlugin*) initWithWebView:(UIWebView*)theWebView
-{
-    self = (CDVPayPalMPL*)[super initWithWebView:(UIWebView*)theWebView];
-    if (self) {
-		//if ([PAYPAL_APP_ID isEqualToString:NO_APP_ID]) {
-		//	NSLog(@"WARNING: You are using a dummy PayPal App ID.");
-		//}
-		//if (PAYPAL_APP_ENV == ENV_NONE) {
-		//	NSLog(@"WARNING: You are using the offline PayPal ENV_NONE environment.");
-		//}
-		
-		//[PayPal initializeWithAppID:PAYPAL_APP_ID forEnvironment:PAYPAL_APP_ENV];
-        //NSLog( @"PayPalMPL init: buildVersion = %@", [PayPal buildVersion] );
-    }
-    return self;
-}
+//-(CDVPlugin*) initWithWebView:(UIWebView*)theWebView
+//{
+//    self = (CDVPayPalMPL*)[super initWithWebView:(UIWebView*)theWebView];
+//    if (self) {
+//      //if ([PAYPAL_APP_ID isEqualToString:NO_APP_ID]) {
+//      //  NSLog(@"WARNING: You are using a dummy PayPal App ID.");
+//      //}
+//      //if (PAYPAL_APP_ENV == ENV_NONE) {
+//      //  NSLog(@"WARNING: You are using the offline PayPal ENV_NONE environment.");
+//      //}
+//      
+//      //[PayPal initializeWithAppID:PAYPAL_APP_ID forEnvironment:PAYPAL_APP_ENV];
+//        //NSLog( @"PayPalMPL init: buildVersion = %@", [PayPal buildVersion] );
+//    }
+//    return self;
+//}
 
 - (void) initWithAppID:(CDVInvokedUrlCommand *)command
 {
@@ -109,12 +109,12 @@
     NSString *callbackId = command.callbackId;
     NSArray* arguments = command.arguments;
     
-	int argc = [arguments count];
-	if (argc < 1) {
-		NSLog(@"PayPalMPL.prepare - missing argument for paymentType and lang (string).");
-		return;
-	}
-	
+    int argc = [arguments count];
+    if (argc < 1) {
+        NSLog(@"PayPalMPL.prepare - missing argument for paymentType and lang (string).");
+        return;
+    }
+    
     NSInteger paymentType = TYPE_NOT_SET;
     NSString *strPaymentType = [arguments objectAtIndex:PAYMENT_TYPE_ARG_INDEX];
     if( strPaymentType ) {
@@ -133,11 +133,11 @@
     NSString *strLang = [arguments objectAtIndex:LANG_ARG_INDEX];
     if(! strLang) strLang = @"en_US";
     
-	if (self.ppButton != nil) {
-		[self.ppButton removeFromSuperview];
-		self.ppButton = nil;
-	}
-	
+    if (self.ppButton != nil) {
+        [self.ppButton removeFromSuperview];
+        self.ppButton = nil;
+    }
+    
     self.ppButton = [ [PayPal getPayPalInst] getPayButtonWithTarget:self
                                                       andAction:@selector(checkout)
                                                       andButtonType:BUTTON_152x33
@@ -146,10 +146,10 @@
         NSLog(@"PayPalMPL.prepare - ppButton = nil, failed calling getPayButtonWithTarget?");
     }
     
-	[super.webView addSubview:self.ppButton];
-	self.ppButton.hidden = YES;
+    [super.webView addSubview:self.ppButton];
+    self.ppButton.hidden = YES;
 
-	NSLog(@"PayPalMPL.prepare - set paymentType: %d", paymentType);
+    NSLog(@"PayPalMPL.prepare - set paymentType: %d", paymentType);
     
     PayPal* pp = [PayPal getPayPalInst];
     pp.lang = strLang;
@@ -208,11 +208,11 @@
         bHideButton = YES;
     }
     
-	if (self.ppButton != nil) {
-		[self.ppButton removeFromSuperview];
-		self.ppButton = nil;
-	}
-	
+    if (self.ppButton != nil) {
+        [self.ppButton removeFromSuperview];
+        self.ppButton = nil;
+    }
+    
     self.ppButton = [ [PayPal getPayPalInst] getPayButtonWithTarget:self
                                                           andAction:@selector(checkout)
                                                       andButtonType:nPayPalButton
@@ -222,8 +222,8 @@
         return;
     }
     
-	[super.webView addSubview:self.ppButton];
-	self.ppButton.hidden = bHideButton;
+    [super.webView addSubview:self.ppButton];
+    self.ppButton.hidden = bHideButton;
     
     self.ppPayment.paymentType = self.pType;
     self.ppPayment.paymentCurrency = [payinfo valueForKey:@"paymentCurrency"];
@@ -274,38 +274,38 @@
 
     NSLog(@"PayPalMPL.pay - called");
     
-	if (self.ppButton != nil) {
-		//[self.ppButton sendActionsForControlEvents:UIControlEventTouchUpInside];
+    if (self.ppButton != nil) {
+        //[self.ppButton sendActionsForControlEvents:UIControlEventTouchUpInside];
         payCallbackId = command.callbackId;
         [self checkout];
-	} else {
-		NSLog( @"PayPalMPL.pay - call setPaymentInfo first" );
+    } else {
+        NSLog( @"PayPalMPL.pay - call setPaymentInfo first" );
         
         NSString * msg = @"PayPalMPL.pay - call setPaymentInfo first";
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
                                                           messageAsString:msg];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
-	}
+    }
 }
 
 - (void) checkout
 {
     NSLog(@"PayPalMPL.checkout - triggered");
 
-	if (self.ppPayment) {
-		NSLog(@"PayPalMPL.payWithPaypal - payment sent. currency:%@ amount:%@ desc:%@ recipient:%@ merchantName:%@",
-			  self.ppPayment.paymentCurrency, self.ppPayment.subTotal, self.ppPayment.description,
-			  self.ppPayment.recipient, self.ppPayment.merchantName);
+    if (self.ppPayment) {
+        NSLog(@"PayPalMPL.payWithPaypal - payment sent. currency:%@ amount:%@ desc:%@ recipient:%@ merchantName:%@",
+              self.ppPayment.paymentCurrency, self.ppPayment.subTotal, self.ppPayment.description,
+              self.ppPayment.recipient, self.ppPayment.merchantName);
 
-		[[PayPal getPayPalInst] checkoutWithPayment:self.ppPayment];
+        [[PayPal getPayPalInst] checkoutWithPayment:self.ppPayment];
         
-	} else {
-		NSLog(@"PayPalMPL.payWithPaypal - no payment info. call setPaymentInfo first");
+    } else {
+        NSLog(@"PayPalMPL.payWithPaypal - no payment info. call setPaymentInfo first");
         
         NSString * msg = @"PayPalMPL.payWithPaypal - no payment info. call setPaymentInfo first";
         CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
                                                           messageAsString:msg];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:payCallbackId];	}
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:payCallbackId];  }
 }
 
 #pragma mark -
@@ -313,18 +313,19 @@
 
 - (void)paymentSuccessWithKey:(NSString *)payKey andStatus:(PayPalPaymentStatus)paymentStatus 
 {
-	NSString* jsString = 
-	@"(function() {"
-	"var e = document.createEvent('Events');"
-	"e.initEvent('PaypalPaymentEvent.Success');"
-	"e.payKey = '%@';"
+    NSString* jsString = 
+    @"(function() {"
+    "var e = document.createEvent('Events');"
+    "e.initEvent('PaypalPaymentEvent.Success');"
+    "e.payKey = '%@';"
     "e.paymentStatus = %d;"
-	"document.dispatchEvent(e);"
-	"})();";
-	
-	[super writeJavascript:[NSString stringWithFormat:jsString, payKey, paymentStatus]];
-	
-	NSLog(@"PayPalMPL.paymentSuccess - payKey:%@", payKey);
+    "document.dispatchEvent(e);"
+    "})();";
+    
+    //[super writeJavascript:[NSString stringWithFormat:jsString, payKey, paymentStatus]];
+    [self.commandDelegate evalJs:[NSString stringWithFormat:jsString, payKey, paymentStatus]];
+    
+    NSLog(@"PayPalMPL.paymentSuccess - payKey:%@", payKey);
     
     CDVPluginResult *pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:payCallbackId];
@@ -334,17 +335,18 @@
 
 - (void) paymentFailedWithCorrelationID:(NSString *)correlationID
 {
-	NSString* jsString =
-	@"(function() {"
-	"var e = document.createEvent('Events');"
-	"e.initEvent('PaypalPaymentEvent.Failed');"
-	"e.correlationID = '%@';"
-	"document.dispatchEvent(e);"
-	"})();";
-	
-	[super writeJavascript:[NSString stringWithFormat:jsString, correlationID]];	
+    NSString* jsString =
+    @"(function() {"
+    "var e = document.createEvent('Events');"
+    "e.initEvent('PaypalPaymentEvent.Failed');"
+    "e.correlationID = '%@';"
+    "document.dispatchEvent(e);"
+    "})();";
+    
+    //[super writeJavascript:[NSString stringWithFormat:jsString, correlationID]];
+    [self.commandDelegate evalJs:[NSString stringWithFormat:jsString, correlationID]];
 
-	NSLog(@"PayPalMPL.paymentFailed - correlationID:%@", correlationID);
+    NSLog(@"PayPalMPL.paymentFailed - correlationID:%@", correlationID);
 
     NSString *severity = [[PayPal getPayPalInst].responseMessage objectForKey:@"severity"];
     NSLog(@"severity: %@", severity);
@@ -363,14 +365,15 @@
 
 - (void) paymentCanceled
 {
-	NSString* jsString =
-	@"(function() {"
-	"var e = document.createEvent('Events');"
-	"e.initEvent('PaypalPaymentEvent.Canceled');"
-	"document.dispatchEvent(e);"
-	"})();";
-	
-	[super writeJavascript:jsString];
+    NSString* jsString =
+    @"(function() {"
+    "var e = document.createEvent('Events');"
+    "e.initEvent('PaypalPaymentEvent.Canceled');"
+    "document.dispatchEvent(e);"
+    "})();";
+    
+    //[super writeJavascript:jsString];
+    [self.commandDelegate evalJs:jsString];
     
     NSLog( @"PayPalMPL.paymentCanceled" );
     
