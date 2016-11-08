@@ -9,13 +9,14 @@
 
 #import "PayPal.h"
 #import "PayPalPayment.h"
+#import "PayPalAdvancedPayment.h"
 #import "PayPalInvoiceItem.h"
 #import "PayPalAddress.h" // use for dynamic amount calculation
 #import "PayPalAmounts.h" // use for dynamic amount calculation
 
 @implementation CDVPayPalMPL
 
-@synthesize ppButton, ppPayment, pType, pStatus, payCallbackId;
+@synthesize ppButton, ppPayment, advancedPayment, pType, pStatus, payCallbackId;
 
 #define NO_APP_ID   @"dummy"
 
@@ -36,7 +37,7 @@
 //      //if (PAYPAL_APP_ENV == ENV_NONE) {
 //      //  NSLog(@"WARNING: You are using the offline PayPal ENV_NONE environment.");
 //      //}
-//      
+//
 //      //[PayPal initializeWithAppID:PAYPAL_APP_ID forEnvironment:PAYPAL_APP_ENV];
 //        //NSLog( @"PayPalMPL init: buildVersion = %@", [PayPal buildVersion] );
 //    }
@@ -48,7 +49,7 @@
     CDVPluginResult *pluginResult;
     NSString *callbackId = command.callbackId;
     NSArray* arguments = command.arguments;
-
+    
     NSDictionary * args = nil;
     if ([arguments objectAtIndex:PAYMENT_INFO_ARG_INDEX]) {
         args = [NSDictionary dictionaryWithDictionary:[arguments objectAtIndex:PAYMENT_INFO_ARG_INDEX]];
@@ -80,7 +81,7 @@
 {
     CDVPluginResult *pluginResult;
     NSString *callbackId = command.callbackId;
-
+    
     NSString* msg = nil;
     switch( [PayPal initializationStatus] ) {
         case STATUS_NOT_STARTED:
@@ -129,7 +130,7 @@
             paymentType = TYPE_NOT_SET;
         }
     }
-
+    
     NSString *strLang = [arguments objectAtIndex:LANG_ARG_INDEX];
     if(! strLang) strLang = @"en_US";
     
@@ -139,7 +140,7 @@
     }
     
     self.ppButton = [ [PayPal getPayPalInst] getPayButtonWithTarget:self
-                                                      andAction:@selector(checkout)
+                                                          andAction:@selector(checkout)
                                                       andButtonType:BUTTON_152x33
                                                       andButtonText:BUTTON_TEXT_PAY ];
     if(self.ppButton == nil) {
@@ -148,15 +149,15 @@
     
     [super.webView addSubview:self.ppButton];
     self.ppButton.hidden = YES;
-
+    
     NSLog(@"PayPalMPL.prepare - set paymentType: %d", paymentType);
     
     PayPal* pp = [PayPal getPayPalInst];
     pp.lang = strLang;
-    pp.shippingEnabled = FALSE;
+    pp.shippingEnabled = YES;
     pp.dynamicAmountUpdateEnabled = NO;
     pp.feePayer = FEEPAYER_EACHRECEIVER;
-
+    
     pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
 }
@@ -170,8 +171,8 @@
     NSLog(@"PayPalMPL.setPaymentInfo - called");
     
     self.ppPayment = nil;
-    self.ppPayment = [[PayPalPayment alloc] init];
-
+    self.advancedPayment = nil;
+    
     NSDictionary * payinfo = nil;
     if ([arguments objectAtIndex:PAYMENT_INFO_ARG_INDEX]) {
         payinfo = [NSDictionary dictionaryWithDictionary:[arguments objectAtIndex:PAYMENT_INFO_ARG_INDEX]];
@@ -182,7 +183,7 @@
     
     PayPal* pp = [PayPal getPayPalInst];
     pp.lang = strLang;
-    pp.shippingEnabled = FALSE;
+    pp.shippingEnabled = YES;
     pp.dynamicAmountUpdateEnabled = NO;
     pp.feePayer = FEEPAYER_EACHRECEIVER;
     
@@ -225,45 +226,94 @@
     [super.webView addSubview:self.ppButton];
     self.ppButton.hidden = bHideButton;
     
-    self.ppPayment.paymentType = self.pType;
-    self.ppPayment.paymentCurrency = [payinfo valueForKey:@"paymentCurrency"];
-    self.ppPayment.recipient = [payinfo valueForKey:@"recipient"];
-    self.ppPayment.description = [payinfo valueForKey:@"description"];
-    self.ppPayment.merchantName = [payinfo valueForKey:@"merchantName"];
-    NSString* amount = [payinfo valueForKey:@"subTotal"];
-    
-    if(! self.ppPayment.paymentCurrency) {
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
-                                         messageAsString:@"CDVPayPalMPL: paymentCurrency missing"];
-    } else if(! amount) {
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
-                                         messageAsString:@"CDVPayPalMPL: subTotal missing"];
-    } else if(! self.ppPayment.recipient ) {
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
-                                         messageAsString:@"CDVPayPalMPL: recipient missing"];
-    } else {
-        NSDecimalNumberHandler *roundPlain = [NSDecimalNumberHandler
-                                           decimalNumberHandlerWithRoundingMode:NSRoundPlain
-                                           scale:2
-                                           raiseOnExactness:NO
-                                           raiseOnOverflow:NO
-                                           raiseOnUnderflow:NO
-                                           raiseOnDivideByZero:YES];
-        self.ppPayment.subTotal = [[[NSDecimalNumber alloc] initWithFloat:[amount floatValue] ] decimalNumberByRoundingAccordingToBehavior:roundPlain ];
+    NSNumber* isAdvanced = [payinfo objectForKey:@"isAdvanced"];
+    if(isAdvanced != nil && [isAdvanced boolValue] == YES) {
+        self.advancedPayment = [[PayPalAdvancedPayment alloc] init];
+
+        self.advancedPayment.paymentCurrency = [payinfo valueForKey:@"paymentCurrency"];
+        self.advancedPayment.merchantName = [payinfo valueForKey:@"merchantName"];
         
-/*      self.ppPayment.invoiceData = [[PayPalInvoiceData alloc] init];
-        self.ppPayment.invoiceData.totalTax = [NSDecimalNumber decimalNumberWithString:[NSString stringWithFormat:@"%.2f",0.00]];
-        self.ppPayment.invoiceData.invoiceItems = [NSMutableArray array];
+        NSMutableArray* _receivers = [[NSMutableArray alloc] init];
+        self.advancedPayment.receiverPaymentDetails = _receivers;
+
+        NSMutableArray* jsonReceivers = [payinfo objectForKey:@"receivers"];
+        if (jsonReceivers == nil) {
+        } else {
+            for (NSDictionary* _jsonReceiver in jsonReceivers) {
+                PayPalReceiverPaymentDetails* detail = [[PayPalReceiverPaymentDetails alloc] init];
+                detail.recipient = [_jsonReceiver valueForKey:@"recipient"];
+                if (detail.recipient == nil) {
+                    continue;
+                }
+                
+                NSString* amount = [_jsonReceiver valueForKey:@"subTotal"];
+                NSDecimalNumberHandler *roundPlain = [NSDecimalNumberHandler
+                                                      decimalNumberHandlerWithRoundingMode:NSRoundPlain
+                                                      scale:2
+                                                      raiseOnExactness:NO
+                                                      raiseOnOverflow:NO
+                                                      raiseOnUnderflow:NO
+                                                      raiseOnDivideByZero:YES];
+                
+                if (amount == nil) {
+                    detail.subTotal = [NSDecimalNumber numberWithInt:0];
+                } else {
+                    detail.subTotal = [[[NSDecimalNumber alloc] initWithFloat:[amount floatValue] ] decimalNumberByRoundingAccordingToBehavior:roundPlain ];
+                }
+                
+                NSNumber* isPrimary = [_jsonReceiver objectForKey:@"isPrimary"];
+                detail.isPrimary = isPrimary == nil ? false : [isPrimary boolValue];
+                
+                [_receivers addObject:detail];
+            }
+            
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+        }
+    }
+    else {
+        self.ppPayment = [[PayPalPayment alloc] init];
+
+        self.ppPayment.paymentType = self.pType;
+        self.ppPayment.paymentCurrency = [payinfo valueForKey:@"paymentCurrency"];
+        self.ppPayment.recipient = [payinfo valueForKey:@"recipient"];
+        self.ppPayment.description = [payinfo valueForKey:@"description"];
+        self.ppPayment.merchantName = [payinfo valueForKey:@"merchantName"];
+        NSString* amount = [payinfo valueForKey:@"subTotal"];
         
-        PayPalInvoiceItem *item = [[PayPalInvoiceItem alloc] init];
-        item.totalPrice = self.ppPayment.subTotal;
-        item.name = self.ppPayment.description;
-        item.itemId = [payinfo valueForKey:@"itemId"];
-        if(! item.itemId) item.itemId = @"10001";
-        [self.ppPayment.invoiceData.invoiceItems addObject:item];
-*/        
-        pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+        if(! self.ppPayment.paymentCurrency) {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                             messageAsString:@"CDVPayPalMPL: paymentCurrency missing"];
+        } else if(! amount) {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                             messageAsString:@"CDVPayPalMPL: subTotal missing"];
+        } else if(! self.ppPayment.recipient ) {
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR
+                                             messageAsString:@"CDVPayPalMPL: recipient missing"];
+        } else {
+            NSDecimalNumberHandler *roundPlain = [NSDecimalNumberHandler
+                                                  decimalNumberHandlerWithRoundingMode:NSRoundPlain
+                                                  scale:2
+                                                  raiseOnExactness:NO
+                                                  raiseOnOverflow:NO
+                                                  raiseOnUnderflow:NO
+                                                  raiseOnDivideByZero:YES];
+            self.ppPayment.subTotal = [[[NSDecimalNumber alloc] initWithFloat:[amount floatValue] ] decimalNumberByRoundingAccordingToBehavior:roundPlain ];
+            
+            /*      self.ppPayment.invoiceData = [[PayPalInvoiceData alloc] init];
+             self.ppPayment.invoiceData.totalTax = [NSDecimalNumber decimalNumberWithString:[NSString stringWithFormat:@"%.2f",0.00]];
+             self.ppPayment.invoiceData.invoiceItems = [NSMutableArray array];
+             
+             PayPalInvoiceItem *item = [[PayPalInvoiceItem alloc] init];
+             item.totalPrice = self.ppPayment.subTotal;
+             item.name = self.ppPayment.description;
+             item.itemId = [payinfo valueForKey:@"itemId"];
+             if(! item.itemId) item.itemId = @"10001";
+             [self.ppPayment.invoiceData.invoiceItems addObject:item];
+             */
+            pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+            [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
+        }
     }
     [self.commandDelegate sendPluginResult:pluginResult callbackId:callbackId];
 }
@@ -271,7 +321,7 @@
 - (void) pay:(CDVInvokedUrlCommand *)command
 {
     NSString *callbackId = command.callbackId;
-
+    
     NSLog(@"PayPalMPL.pay - called");
     
     if (self.ppButton != nil) {
@@ -291,15 +341,20 @@
 - (void) checkout
 {
     NSLog(@"PayPalMPL.checkout - triggered");
-
+    
     if (self.ppPayment) {
         NSLog(@"PayPalMPL.payWithPaypal - payment sent. currency:%@ amount:%@ desc:%@ recipient:%@ merchantName:%@",
               self.ppPayment.paymentCurrency, self.ppPayment.subTotal, self.ppPayment.description,
               self.ppPayment.recipient, self.ppPayment.merchantName);
-
+        
         [[PayPal getPayPalInst] checkoutWithPayment:self.ppPayment];
         
-    } else {
+    }
+    else if (self.advancedPayment) {
+        [[PayPal getPayPalInst] setFeePayer:FEEPAYER_EACHRECEIVER];
+        [[PayPal getPayPalInst] advancedCheckoutWithPayment:self.advancedPayment];
+    }
+    else {
         NSLog(@"PayPalMPL.payWithPaypal - no payment info. call setPaymentInfo first");
         
         NSString * msg = @"PayPalMPL.payWithPaypal - no payment info. call setPaymentInfo first";
@@ -311,9 +366,9 @@
 #pragma mark -
 #pragma mark Paypal delegates
 
-- (void)paymentSuccessWithKey:(NSString *)payKey andStatus:(PayPalPaymentStatus)paymentStatus 
+- (void)paymentSuccessWithKey:(NSString *)payKey andStatus:(PayPalPaymentStatus)paymentStatus
 {
-    NSString* jsString = 
+    NSString* jsString =
     @"(function() {"
     "var e = document.createEvent('Events');"
     "e.initEvent('PaypalPaymentEvent.Success');"
@@ -345,9 +400,9 @@
     
     //[super writeJavascript:[NSString stringWithFormat:jsString, correlationID]];
     [self.commandDelegate evalJs:[NSString stringWithFormat:jsString, correlationID]];
-
+    
     NSLog(@"PayPalMPL.paymentFailed - correlationID:%@", correlationID);
-
+    
     NSString *severity = [[PayPal getPayPalInst].responseMessage objectForKey:@"severity"];
     NSLog(@"severity: %@", severity);
     NSString *category = [[PayPal getPayPalInst].responseMessage objectForKey:@"category"];

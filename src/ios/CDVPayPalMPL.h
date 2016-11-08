@@ -27,12 +27,14 @@ typedef enum PaymentStatuses {
 	UIButton* ppButton;
     PayPalPaymentType pType;
     PayPalPayment*  ppPayment;
+    PayPalAdvancedPayment* advancedPayment;
     PaymentStatus pStatus;
     NSString * payCallbackId;
 }
 
 @property (nonatomic, retain) UIButton* ppButton;
 @property (nonatomic, retain) PayPalPayment*  ppPayment;
+@property (nonatomic, retain) PayPalAdvancedPayment*  advancedPayment;
 @property (nonatomic, assign) PayPalPaymentType pType;
 @property (nonatomic, assign) PaymentStatus pStatus;
 @property (nonatomic, retain) NSString * payCallbackId;
